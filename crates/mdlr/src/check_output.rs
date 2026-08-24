@@ -305,25 +305,10 @@ fn build_symbol_json(
             insert(spec.name, value, spec.bucket_for(value));
         }
     }
-    if let Some(spec) = &specs.fan_out_spec
-        && let Some(value) = find_value(spec.distribution, symbol_id)
-    {
-        insert("fan_out", value, spec.thresholds.evaluate(value as f64));
-    }
-    if let Some(spec) = &specs.cyclomatic_spec
-        && let Some(value) = find_value(spec.distribution, symbol_id)
-    {
-        insert("cyclomatic", value, spec.thresholds.evaluate(value as f64));
-    }
-    if let Some(spec) = &specs.params_spec
-        && let Some(value) = find_value(spec.distribution, symbol_id)
-    {
-        insert("params", value, spec.thresholds.evaluate(value as f64));
-    }
-    if let Some(spec) = &specs.fan_in_spec
-        && let Some(value) = find_value(spec.distribution, symbol_id)
-    {
-        insert("fan_in", value, spec.thresholds.evaluate(value as f64));
+    for spec in &specs.gated {
+        if let Some(value) = find_value(spec.distribution, symbol_id) {
+            insert(spec.name, value, spec.thresholds.evaluate(value as f64));
+        }
     }
     if let Some(spec) = &specs.function_size_spec
         && let Some(value) = find_value(spec.distribution, symbol_id)
