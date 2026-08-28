@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metric Shape Prototype — mdlr</title>
+<style>
+  :root {
+    --bg: #fbfbfa; --panel: #fff; --ink: #16161a; --muted: #6b6b76;
+    --line: #e5e5e2; --accent: #4f46e5; --accent-soft: #eef2ff;
+    --excellent: #0f7b4f; --excellent-bg: #e6f5ee;
+    --good:      #1c6fa8; --good-bg:      #e8f2f9;
+    --fair:      #9a6b00; --fair-bg:      #fdf3dc;
+    --poor:      #b4531b; --poor-bg:      #fceee3;
+    --critical:  #b3261e; --critical-bg:  #fce9e7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141416; --panel: #1c1c1f; --ink: #eceaf0; --muted: #9a9aa4;
+      --line: #2c2c31; --accent: #a5a0ff; --accent-soft: #23233a;
+      --excellent: #63c99a; --excellent-bg: #172b23;
+      --good:      #6db4e0; --good-bg:      #16252f;
+      --fair:      #e0b552; --fair-bg:      #2d2617;
+      --poor:      #ef9963; --poor-bg:      #2f2118;
+      --critical:  #f08279; --critical-bg:  #331b1a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2.5rem 1.5rem 6rem; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 .4rem; letter-spacing: -.02em; }
+  h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .09em;
+       color: var(--muted); margin: 2.5rem 0 .9rem; font-weight: 600; }
+  h3 { font-size: 1rem; margin: 0 0 .35rem; }
+  p { margin: 0 0 .8rem; }
+  .lede { color: var(--muted); max-width: 68ch; }
+  .question {
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+    padding: 1rem 1.2rem; margin: 1.4rem 0 0; border-radius: 0 6px 6px 0; max-width: 78ch;
+  }
+  .question strong { display: block; margin-bottom: .3rem; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1.1rem 1.2rem; }
+  button {
+    font: inherit; font-size: .875rem; padding: .4rem .8rem; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { opacity: .88; color: #fff; }
+  button:disabled { opacity: .35; cursor: default; }
+  button.done { opacity: .45; text-decoration: line-through; }
+  select { font: inherit; font-size: .875rem; padding: .38rem .5rem; border-radius: 6px;
+           border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+  .row + .row { margin-top: .7rem; }
+  .label { font-size: .8rem; color: var(--muted); margin-right: .1rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .875rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  th.prop { background: var(--accent-soft); }
+  td.name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; white-space: nowrap; }
+  .chip { display: inline-block; padding: .1rem .45rem; border-radius: 4px; font-size: .74rem;
+          font-weight: 600; letter-spacing: .01em; }
+  .b-excellent { color: var(--excellent); background: var(--excellent-bg); }
+  .b-good      { color: var(--good);      background: var(--good-bg); }
+  .b-fair      { color: var(--fair);      background: var(--fair-bg); }
+  .b-poor      { color: var(--poor);      background: var(--poor-bg); }
+  .b-critical  { color: var(--critical);  background: var(--critical-bg); }
+  .val { color: var(--muted); font-size: .76rem; margin-left: .3rem; font-family: ui-monospace, monospace; }
+  .quiet { color: var(--muted); }
+  .why { display: block; font-size: .7rem; color: var(--muted); margin-top: .15rem; }
+  .changed { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: -1px; }
+  .tab { border-radius: 6px 6px 0 0; border-bottom-color: transparent; font-size: .82rem; }
+  .tab[aria-selected="true"] { background: var(--panel); border-color: var(--line);
+    border-bottom-color: var(--panel); color: var(--accent); font-weight: 600; }
+  .scenario { border-radius: 0 8px 8px 8px; }
+  .steps { display: flex; flex-direction: column; gap: .4rem; margin-top: .9rem; align-items: flex-start; }
+  .step { display: flex; gap: .5rem; align-items: baseline; }
+  .step .n { font-size: .72rem; color: var(--muted); width: 1.1rem; font-variant-numeric: tabular-nums; }
+  .watch { font-size: .85rem; color: var(--muted); border-top: 1px solid var(--line);
+           margin-top: 1rem; padding-top: .8rem; }
+  .delta { font-size: .85rem; min-height: 1.4rem; margin-bottom: .8rem; }
+  .delta b { color: var(--accent); font-weight: 600; }
+  .note { font-size: .8rem; color: var(--muted); margin-top: .7rem; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .86em;
+         background: var(--accent-soft); padding: .05rem .28rem; border-radius: 3px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Metric Shape Prototype</h1>
+<p class="lede">Four ways of scoring the same code, driven by the moves a coding agent actually makes. Throwaway — this page exists to settle one argument.</p>
+
+<div class="question">
+  <strong>The question this answers</strong>
+  mdlr scores each function on a one-sided curve: bigger is worse. An agent told to lower the score can do it two ways — really simplify the code, or shuffle the code around until it falls off the readout. <code>function_size</code> already has a two-sided curve (bad when too big <em>and</em> bad when too small) to catch one kind of shuffling. Does that curve hold up against the other moves? And what shape catches the move it misses — splitting one big function into ten small ones — without also punishing code that is honestly made of small pieces?
+</div>
+
+<h2>Free play</h2>
+<div class="panel">
+  <div class="row">
+    <span class="label">Start from</span>
+    <button data-preset="god">A 300-line function</button>
+    <button data-preset="tiny">A small private helper</button>
+    <button data-preset="bigfile">One file, fourteen functions</button>
+  </div>
+  <div class="row">
+    <span class="label">Function</span>
+    <select id="target"></select>
+    <button data-act="extract">Move 28 lines into a new helper</button>
+    <button data-act="shrink">Delete 20 lines</button>
+    <button data-act="inline">Put it back into its caller</button>
+    <button data-act="addCaller">Give it a second caller</button>
+  </div>
+  <div class="row">
+    <span class="label">File</span>
+    <select id="targetFile"></select>
+    <button data-act="explode">Split into one file per function</button>
+  </div>
+</div>
+
+<h2>What the code looks like now</h2>
+<div class="panel" id="codePanel"></div>
+
+<h2>What each scorer says</h2>
+<div class="delta" id="delta"></div>
+<div class="panel">
+  <table id="fnBoard"></table>
+  <p class="note">A dash means the scorer stays quiet about that function, and says why.</p>
+</div>
+<div class="panel" style="margin-top:1rem">
+  <table id="fileBoard"></table>
+</div>
+
+<h2>Guided walkthroughs</h2>
+<div class="tabs" id="tabs"></div>
+<div class="panel scenario" id="scenario"></div>
+
+</main>
+
+<script>
+/* ============================================================================
+ * PURE MODULE — the part worth keeping. No DOM, no handlers.
+ * A code graph, the moves an agent makes on it, and four competing scorers.
+ * ==========================================================================*/
+
+const BUCKETS = ['excellent', 'good', 'fair', 'poor', 'critical'];
+const rank = (b) => BUCKETS.indexOf(b);
+const worse = (a, b) => (rank(a) >= rank(b) ? a : b);
+
+/* Mirrors MetricThresholds::evaluate — higher is worse. */
+const desc = (t, v) =>
+  v < t.excellent ? 'excellent' : v < t.good ? 'good' : v < t.fair ? 'fair' : v < t.poor ? 'poor' : 'critical';
+
+/* Mirrors MetricThresholds::evaluate_asc — lower is worse. */
+const asc = (t, v) =>
+  v >= t.excellent ? 'excellent' : v >= t.good ? 'good' : v >= t.fair ? 'fair' : v >= t.poor ? 'poor' : 'critical';
+
+/* ---- the model -----------------------------------------------------------
+ * files:   [{ id, name }]
+ * symbols: [{ id, name, file, size, callees: [id] }]
+ * Callers, file size and importers are all derived, so a move cannot cheat by
+ * editing a number the scorers read.
+ */
+
+const callersOf = (m, id) => m.symbols.filter((s) => s.callees.includes(id));
+const fanIn = (m, id) => callersOf(m, id).length;
+const symbolsIn = (m, fileId) => m.symbols.filter((s) => s.file === fileId);
+const fileLoc = (m, fileId) => symbolsIn(m, fileId).reduce((n, s) => n + s.size, 0);
+
+const importersOf = (m, fileId) => {
+  const inside = new Set(symbolsIn(m, fileId).map((s) => s.id));
+  const from = new Set();
+  for (const s of m.symbols) {
+    if (s.file === fileId) continue;
+    if (s.callees.some((c) => inside.has(c))) from.add(s.file);
+  }
+  return from.size;
+};
+
+/* A helper this function alone calls, living in the same file. */
+const isPrivateHelper = (m, parent, calleeId) => {
+  const callee = m.symbols.find((s) => s.id === calleeId);
+  return !!callee && fanIn(m, calleeId) === 1 && callee.file === parent.file;
+};
+
+/* How many private helpers hang directly off this function. Ten leaves means
+ * one function was spread out. One means a chain, which is a different thing. */
+const privateFanout = (m, id) => {
+  const sym = m.symbols.find((s) => s.id === id);
+  return sym ? sym.callees.filter((c) => isPrivateHelper(m, sym, c)).length : 0;
+};
+
+/* Own size plus every private single-caller helper it pulls in, transitively:
+ * the size this function would have if you put all of its exclusive helpers
+ * back where they came from. */
+const inlinedSize = (m, id, seen = new Set()) => {
+  if (seen.has(id)) return 0;
+  seen.add(id);
+  const sym = m.symbols.find((s) => s.id === id);
+  if (!sym) return 0;
+  let total = sym.size;
+  for (const c of sym.callees) {
+    if (isPrivateHelper(m, sym, c)) total += inlinedSize(m, c, seen);
+  }
+  return total;
+};
+
+/* ---- the moves an agent makes -------------------------------------------- */
+
+const clone = (m) => ({
+  files: m.files.map((f) => ({ ...f })),
+  symbols: m.symbols.map((s) => ({ ...s, callees: [...s.callees] })),
+  seq: m.seq || 0,
+});
+
+function apply(model, action) {
+  const m = clone(model);
+  const find = (id) => m.symbols.find((s) => s.id === id);
+
+  switch (action.type) {
+    /* Pull lines out into a new helper. The parent keeps one line for the
+     * call, so the total line count is conserved (plus one). */
+    case 'extract': {
+      const parent = find(action.id);
+      if (!parent || parent.size <= action.lines) return model;
+      m.seq += 1;
+      const helper = {
+        id: 'h' + m.seq,
+        name: parent.name + '_part_' + m.seq,
+        file: parent.file,
+        size: action.lines,
+        callees: [],
+      };
+      parent.size = parent.size - action.lines + 1;
+      parent.callees.push(helper.id);
+      m.symbols.push(helper);
+      return m;
+    }
+
+    /* Really delete code. */
+    case 'shrink': {
+      const sym = find(action.id);
+      if (!sym) return model;
+      sym.size = Math.max(1, sym.size - action.lines);
+      return m;
+    }
+
+    /* The reverse of extract. Only legal with exactly one caller. */
+    case 'inline': {
+      const sym = find(action.id);
+      if (!sym || fanIn(m, action.id) !== 1) return model;
+      const caller = callersOf(m, action.id)[0];
+      caller.size += sym.size - 1;
+      caller.callees = caller.callees.filter((c) => c !== action.id).concat(sym.callees);
+      m.symbols = m.symbols.filter((s) => s.id !== action.id);
+      return m;
+    }
+
+    /* A second caller appears elsewhere. This is how a helper escapes any
+     * rule that keys on "exactly one caller". */
+    case 'addCaller': {
+      const sym = find(action.id);
+      if (!sym) return model;
+      m.seq += 1;
+      const file = { id: 'cf' + m.seq, name: 'other_' + m.seq + '.rs' };
+      m.files.push(file);
+      m.symbols.push({
+        id: 'c' + m.seq, name: 'second_caller_' + m.seq, file: file.id,
+        size: 9, callees: [action.id],
+      });
+      return m;
+    }
+
+    /* One file per function: what an agent does when told a file is long. */
+    case 'explode': {
+      const inside = symbolsIn(m, action.file);
+      if (inside.length < 2) return model;
+      inside.slice(1).forEach((s) => {
+        m.seq += 1;
+        const file = { id: 'f' + m.seq, name: s.name + '.rs' };
+        m.files.push(file);
+        s.file = file.id;
+      });
+      m.files.find((f) => f.id === action.file).name = inside[0].name + '.rs';
+      return m;
+    }
+
+    case 'load':
+      return preset(action.preset);
+
+    default:
+      return model;
+  }
+}
+
+/* ---- the four scorers ----------------------------------------------------
+ * Each returns { value, bucket?, quiet?, detail? } for one subject.
+ * `quiet` is the reason the scorer deliberately says nothing.
+ */
+
+const FN_HIGH   = { excellent: 20,  good: 50,  fair: 100, poor: 200 };
+const FN_LOW    = { excellent: 5,   good: 4,   fair: 3,   poor: 1   };
+const INLINED   = { excellent: 40,  good: 80,  fair: 150, poor: 300 };
+const FILE_HIGH = { excellent: 200, good: 400, fair: 600, poor: 800 };
+const FILE_LOW  = { excellent: 80,  good: 50,  fair: 30,  poor: 12  };
+
+/* 1. What mdlr does for most metrics today: one-sided, bigger is worse. */
+const scoreOneSided = (m, s) =>
+  s.size <= 1
+    ? { value: s.size, quiet: 'one-line functions are boring' }
+    : { value: s.size, bucket: desc(FN_HIGH, s.size) };
+
+/* 2. What mdlr ships for function_size: two-sided, low side only when the
+ *    function has exactly one caller. */
+const scoreTwoSided = (m, s) => {
+  const callers = fanIn(m, s.id);
+  const lowApplies = callers === 1;
+  if (s.size <= 1 && !lowApplies) return { value: s.size, quiet: 'one-line and exempt' };
+  if (!lowApplies) {
+    const bucket = desc(FN_HIGH, s.size);
+    return {
+      value: s.size,
+      bucket,
+      quiet: bucket === 'excellent'
+        ? (callers === 0 ? 'low side off: no visible caller' : 'low side off: ' + callers + ' callers')
+        : undefined,
+    };
+  }
+  return { value: s.size, bucket: worse(asc(FN_LOW, s.size), desc(FN_HIGH, s.size)) };
+};
+
+/* 3. First attempt: score the function together with every helper only it
+ *    calls. Kept in the board because it is wrong in an instructive way — see
+ *    the "An honest chain" walkthrough. */
+const scoreInlined = (m, s) => {
+  const v = inlinedSize(m, s.id);
+  const pulled = v - s.size;
+  return {
+    value: v,
+    bucket: desc(INLINED, v),
+    detail: pulled > 0 ? s.size + ' own + ' + pulled + ' in private helpers' : undefined,
+  };
+};
+
+/* 4. Second attempt: the same number, but only spoken about when the helpers
+ *    are wide rather than deep. Ten private helpers on one parent is a
+ *    function that was spread out; one private helper is a chain, and a chain
+ *    is not the thing we are hunting. Same idiom as mdlr's existing gates:
+ *    a second signal has to agree before the row reaches the listing. */
+const PRIVATE_FANOUT_FAIR = 4;
+
+const scoreInlinedGated = (m, s) => {
+  const base = scoreInlined(m, s);
+  const width = privateFanout(m, s.id);
+  if (width < PRIVATE_FANOUT_FAIR) {
+    return { value: base.value, quiet: 'gate off: ' + width + ' private helper' + (width === 1 ? '' : 's') };
+  }
+  return { ...base, detail: width + ' private helpers · ' + base.detail };
+};
+
+const FN_SCORERS = [
+  { key: 'one', name: 'function_size', sub: 'one-sided (today)', score: scoreOneSided },
+  { key: 'two', name: 'function_size', sub: 'two-sided (shipping)', score: scoreTwoSided },
+  { key: 'inl', name: 'inlined_size', sub: 'ungated (first try)', score: scoreInlined },
+  { key: 'gat', name: 'inlined_size', sub: 'proposed, gated on width', score: scoreInlinedGated },
+];
+
+/* 4a. file_loc today. 4b. file_loc two-sided, low side only for a file that
+ *     holds one function and is used by exactly one other file. */
+const scoreFileOneSided = (m, f) => {
+  const v = fileLoc(m, f.id);
+  return { value: v, bucket: desc(FILE_HIGH, v) };
+};
+
+const scoreFileTwoSided = (m, f) => {
+  const v = fileLoc(m, f.id);
+  const count = symbolsIn(m, f.id).length;
+  const importers = importersOf(m, f.id);
+  const lowApplies = count === 1 && importers === 1;
+  if (!lowApplies) {
+    const bucket = desc(FILE_HIGH, v);
+    const reason = count !== 1
+      ? 'low side off: ' + count + ' functions'
+      : 'low side off: ' + importers + ' importers';
+    return { value: v, bucket, quiet: bucket === 'excellent' ? reason : undefined };
+  }
+  return { value: v, bucket: worse(asc(FILE_LOW, v), desc(FILE_HIGH, v)) };
+};
+
+const FILE_SCORERS = [
+  { key: 'fone', name: 'file_loc', sub: 'one-sided (today)', score: scoreFileOneSided },
+  { key: 'ftwo', name: 'file_loc', sub: 'two-sided (proposed)', score: scoreFileTwoSided },
+];
+
+/* ---- starting points ----------------------------------------------------- */
+
+function preset(which) {
+  if (which === 'god') {
+    return {
+      seq: 0,
+      files: [{ id: 'f0', name: 'pipeline.rs' }],
+      symbols: [
+        { id: 'main', name: 'main', file: 'f0', size: 12, callees: ['run_pipeline'] },
+        { id: 'run_pipeline', name: 'run_pipeline', file: 'f0', size: 300, callees: [] },
+      ],
+    };
+  }
+  if (which === 'tiny') {
+    return {
+      seq: 0,
+      files: [{ id: 'f0', name: 'report.rs' }],
+      symbols: [
+        { id: 'render_report', name: 'render_report', file: 'f0', size: 62, callees: ['format_row'] },
+        { id: 'format_row', name: 'format_row', file: 'f0', size: 40, callees: [] },
+      ],
+    };
+  }
+  /* bigfile: a chain of fourteen 26-line steps in one 364-line file. */
+  const symbols = [];
+  const stepId = (i) => 'step_' + String(i).padStart(2, '0');
+  for (let i = 1; i <= 14; i++) {
+    symbols.push({ id: stepId(i), name: stepId(i), file: 'f0', size: 26, callees: i < 14 ? [stepId(i + 1)] : [] });
+  }
+  return { seq: 0, files: [{ id: 'f0', name: 'analyze.rs' }], symbols };
+}
+
+/* ---- walkthroughs --------------------------------------------------------
+ * Each step is one action. Every walkthrough starts by loading a preset, so
+ * it runs the same way every time.
+ */
+
+const WALKTHROUGHS = [
+  {
+    id: 'baseline',
+    title: 'The 300-line function',
+    blurb: 'Start with a function everyone agrees is too big. This is the case all four scorers must get right, or none of the rest matters.',
+    watch: 'All three function scorers say critical. There is no disagreement yet.',
+    steps: [{ label: 'Load the 300-line function', action: { type: 'load', preset: 'god' } }],
+  },
+  {
+    id: 'realfix',
+    title: 'The real fix: delete the code',
+    blurb: 'Most of that function was dead. The agent deletes it. This is the outcome we want, so afterwards no scorer should still be complaining.',
+    watch: 'Every scorer goes quiet together. If a scorer still complains here, it is a false positive and the shape is wrong.',
+    steps: [
+      { label: 'Load the 300-line function', action: { type: 'load', preset: 'god' } },
+      { label: 'Delete 100 dead lines', action: { type: 'shrink', id: 'run_pipeline', lines: 100 } },
+      { label: 'Delete 100 more', action: { type: 'shrink', id: 'run_pipeline', lines: 100 } },
+      { label: 'Delete 55 more', action: { type: 'shrink', id: 'run_pipeline', lines: 55 } },
+    ],
+  },
+  {
+    id: 'disperse',
+    title: 'The fake fix: spread it out',
+    blurb: 'Same 300 lines, but the agent moves them into ten private helpers instead of deleting them. Nothing was simplified. The same code runs in the same order. Only the shape on the readout changed.',
+    watch: 'Watch every function_size cell fall to good or excellent while the code stays exactly as long. One-sided and two-sided both report a clean win. Both inlined_size columns still say critical, because they count each helper against the parent that owns it. The gate opens here because run_pipeline ends up with ten private helpers.',
+    steps: [
+      { label: 'Load the 300-line function', action: { type: 'load', preset: 'god' } },
+      { label: 'Move 28 lines into a helper', action: { type: 'extract', id: 'run_pipeline', lines: 28 } },
+      { label: 'And another 28', action: { type: 'extract', id: 'run_pipeline', lines: 28 } },
+      { label: 'And another 28', action: { type: 'extract', id: 'run_pipeline', lines: 28 } },
+      { label: 'Do that seven more times', action: { type: 'batch', times: 7, action: { type: 'extract', id: 'run_pipeline', lines: 28 } } },
+    ],
+  },
+  {
+    id: 'chain',
+    title: 'An honest chain',
+    blurb: 'Fourteen steps that run one after another, each one calling the next. Every step has exactly one caller, so on the call graph this looks the same as fourteen private helpers. But nothing is wrong here, and no scorer should complain.',
+    watch: 'The ungated inlined_size column says critical for the first step, because it swallows the whole chain. That is a false positive, and it is why the first version of this metric does not work. The gated column stays quiet: a chain is one private helper deep, not ten wide, so the gate never opens. This is the same trick mdlr already uses to keep flat match statements out of the cyclomatic listing.',
+    steps: [{ label: 'Load the fourteen-step chain', action: { type: 'load', preset: 'bigfile' } }],
+  },
+  {
+    id: 'toosmall',
+    title: 'Shrunk down to nothing',
+    blurb: 'A 40-line helper with one caller. The agent trims it until only two lines are left. At that point it should just go back into its caller.',
+    watch: 'One-sided says excellent and stops talking. Two-sided says poor, because the low side applies to a helper with a single caller. This is the case the shipping curve was built for, and it works.',
+    steps: [
+      { label: 'Load the small private helper', action: { type: 'load', preset: 'tiny' } },
+      { label: 'Delete 20 lines from format_row', action: { type: 'shrink', id: 'format_row', lines: 20 } },
+      { label: 'Delete 18 more', action: { type: 'shrink', id: 'format_row', lines: 18 } },
+    ],
+  },
+  {
+    id: 'escape',
+    title: 'Getting around the gate',
+    blurb: 'Continue from the two-line helper. A second caller appears somewhere else in the codebase. Nothing about the helper itself changed.',
+    watch: 'The two-sided row goes quiet. The low side only applies to a helper with exactly one caller, so a second caller switches it off. This is a real hole in the shipping gate: a second caller is cheap.',
+    steps: [
+      { label: 'Load the small private helper', action: { type: 'load', preset: 'tiny' } },
+      { label: 'Trim format_row down to two lines', action: { type: 'shrink', id: 'format_row', lines: 38 } },
+      { label: 'A second caller appears', action: { type: 'addCaller', id: 'format_row' } },
+    ],
+  },
+  {
+    id: 'files',
+    title: 'One file per function',
+    blurb: 'A 364-line file holding fourteen small steps. The agent is told the file is long, so it gives each function its own file.',
+    watch: 'file_loc today reports excellent for all fourteen files: a clean win on the readout, from a change that made the code harder to read. The two-sided version reports poor for the thirteen files that hold one function with one importer. The first file is exempt, because nothing imports it.',
+    steps: [
+      { label: 'Load the fourteen-function file', action: { type: 'load', preset: 'bigfile' } },
+      { label: 'Split into one file per function', action: { type: 'explode', file: 'f0' } },
+    ],
+  },
+];
+
+/* ============================================================================
+ * PAGE — throwaway shell. Everything below is wiring.
+ * ==========================================================================*/
+
+let model = preset('god');
+let previous = {};
+let activeTab = WALKTHROUGHS[0].id;
+let stepIndex = 0;
+
+const $ = (id) => document.getElementById(id);
+
+function dispatch(action) {
+  if (action.type === 'batch') {
+    for (let i = 0; i < action.times; i++) model = apply(model, action.action);
+  } else {
+    model = apply(model, action);
+  }
+  render();
+}
+
+function cell(res) {
+  const td = document.createElement('td');
+  if (!res.bucket || res.quiet) {
+    td.innerHTML = '<span class="quiet">—</span><span class="why">' + (res.quiet || 'no row') + '</span>';
+    return { td, bucket: 'quiet' };
+  }
+  td.innerHTML =
+    '<span class="chip b-' + res.bucket + '">' + res.bucket + '</span><span class="val">' + res.value + '</span>' +
+    (res.detail ? '<span class="why">' + res.detail + '</span>' : '');
+  return { td, bucket: res.bucket };
+}
+
+function renderBoard(table, scorers, subjects, subjectName, subjectId, header) {
+  table.innerHTML = '';
+  const head = table.createTHead().insertRow();
+  const first = document.createElement('th');
+  first.textContent = header;
+  head.appendChild(first);
+  for (const s of scorers) {
+    const th = document.createElement('th');
+    if (s.sub.indexOf('proposed') !== -1) th.className = 'prop';
+    th.innerHTML = s.name + '<br><span style="font-weight:400;text-transform:none;letter-spacing:0">' + s.sub + '</span>';
+    head.appendChild(th);
+  }
+  const body = table.createTBody();
+  const changes = [];
+  for (const subj of subjects) {
+    const tr = body.insertRow();
+    const nameCell = tr.insertCell();
+    nameCell.className = 'name';
+    nameCell.textContent = subjectName(subj);
+    for (const s of scorers) {
+      const res = s.score(model, subj);
+      const out = cell(res);
+      const k = s.key + '|' + subjectId(subj);
+      if (k in previous && previous[k] !== out.bucket) {
+        out.td.classList.add('changed');
+        changes.push(subjectName(subj) + ' · ' + s.name + ' ' + s.sub.split(' ')[0] + ': ' + previous[k] + ' → ' + out.bucket);
+      }
+      previous[k] = out.bucket;
+      tr.appendChild(out.td);
+    }
+  }
+  return changes;
+}
+
+function renderCode() {
+  const panel = $('codePanel');
+  panel.innerHTML = '';
+  for (const f of model.files) {
+    const syms = symbolsIn(model, f.id);
+    const imp = importersOf(model, f.id);
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '.7rem';
+    wrap.innerHTML =
+      '<div class="name" style="font-weight:600">' + f.name +
+      '<span class="val">' + fileLoc(model, f.id) + ' lines · ' + syms.length +
+      ' function' + (syms.length === 1 ? '' : 's') + ' · ' + imp + ' importer' + (imp === 1 ? '' : 's') + '</span></div>' +
+      syms.map(function (s) {
+        const fi = fanIn(model, s.id);
+        return '<div class="name" style="padding-left:1.2rem;color:var(--muted)">' + s.name +
+          '<span class="val">' + s.size + ' lines · ' + fi + ' caller' + (fi === 1 ? '' : 's') + '</span></div>';
+      }).join('');
+    panel.appendChild(wrap);
+  }
+  const total = model.symbols.reduce((n, s) => n + s.size, 0);
+  const note = document.createElement('p');
+  note.className = 'note';
+  note.textContent = total + ' lines of code in total, across ' + model.symbols.length +
+    ' functions and ' + model.files.length + ' files.';
+  panel.appendChild(note);
+}
+
+function renderSelects() {
+  const t = $('target');
+  const keep = t.value;
+  t.innerHTML = model.symbols.map((s) => '<option value="' + s.id + '">' + s.name + '</option>').join('');
+  if (model.symbols.some((s) => s.id === keep)) t.value = keep;
+  const f = $('targetFile');
+  const keepF = f.value;
+  f.innerHTML = model.files.map((x) => '<option value="' + x.id + '">' + x.name + '</option>').join('');
+  if (model.files.some((x) => x.id === keepF)) f.value = keepF;
+}
+
+function renderScenario() {
+  const w = WALKTHROUGHS.find((x) => x.id === activeTab);
+  const el = $('scenario');
+  el.innerHTML = '<h3>' + w.title + '</h3><p class="lede">' + w.blurb + '</p>';
+  const steps = document.createElement('div');
+  steps.className = 'steps';
+  w.steps.forEach(function (s, i) {
+    const row = document.createElement('div');
+    row.className = 'step';
+    const n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = (i + 1) + '.';
+    const b = document.createElement('button');
+    b.textContent = s.label;
+    if (i < stepIndex) b.className = 'done';
+    else if (i === stepIndex) b.className = 'primary';
+    b.disabled = i !== stepIndex;
+    b.onclick = function () { stepIndex = i + 1; dispatch(s.action); };
+    row.appendChild(n);
+    row.appendChild(b);
+    steps.appendChild(row);
+  });
+  el.appendChild(steps);
+  const watch = document.createElement('div');
+  watch.className = 'watch';
+  watch.innerHTML = '<strong>What to watch:</strong> ' + w.watch;
+  el.appendChild(watch);
+  if (stepIndex >= w.steps.length) {
+    const again = document.createElement('button');
+    again.textContent = 'Run it again';
+    again.style.marginTop = '.9rem';
+    again.onclick = function () { stepIndex = 0; renderScenario(); };
+    el.appendChild(again);
+  }
+}
+
+function render() {
+  const a = renderBoard($('fnBoard'), FN_SCORERS, model.symbols, (s) => s.name, (s) => s.id, 'Function');
+  const b = renderBoard($('fileBoard'), FILE_SCORERS, model.files, (f) => f.name, (f) => f.id, 'File');
+  const changes = a.concat(b);
+  $('delta').innerHTML = changes.length
+    ? '<b>Changed:</b> ' + changes.slice(0, 6).join(' &nbsp;·&nbsp; ') +
+      (changes.length > 6 ? ' &nbsp;·&nbsp; and ' + (changes.length - 6) + ' more' : '')
+    : '<span class="quiet">No bucket changed.</span>';
+  renderCode();
+  renderSelects();
+  renderScenario();
+}
+
+document.querySelectorAll('[data-preset]').forEach(function (b) {
+  b.onclick = function () {
+    previous = {};
+    stepIndex = 0;
+    dispatch({ type: 'load', preset: b.dataset.preset });
+  };
+});
+
+document.querySelectorAll('[data-act]').forEach(function (b) {
+  b.onclick = function () {
+    const id = $('target').value;
+    const file = $('targetFile').value;
+    const map = {
+      extract: { type: 'extract', id: id, lines: 28 },
+      shrink: { type: 'shrink', id: id, lines: 20 },
+      inline: { type: 'inline', id: id },
+      addCaller: { type: 'addCaller', id: id },
+      explode: { type: 'explode', file: file },
+    };
+    dispatch(map[b.dataset.act]);
+  };
+});
+
+const tabs = $('tabs');
+WALKTHROUGHS.forEach(function (w) {
+  const b = document.createElement('button');
+  b.className = 'tab';
+  b.textContent = w.title;
+  b.setAttribute('aria-selected', String(w.id === activeTab));
+  b.onclick = function () {
+    activeTab = w.id;
+    stepIndex = 0;
+    tabs.querySelectorAll('.tab').forEach(function (t) {
+      t.setAttribute('aria-selected', String(t.textContent === w.title));
+    });
+    renderScenario();
+  };
+  tabs.appendChild(b);
+});
+
+render();
+</script>
+</body>
+</html>
