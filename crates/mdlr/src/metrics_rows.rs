@@ -844,7 +844,11 @@ mod tests {
         let cov =
             HashMap::from([("covered_hotspot", 80), ("untested_helper", 0)]);
 
-        let out = sort_and_group(rows, -1, &cov);
+        // k = 1 so the assertion observes top-k selection. Collecting every
+        // row instead would only observe the canonical display grouping,
+        // which puts cyclomatic ahead of duplication_pct regardless.
+        let out = sort_and_group(rows, 1, &cov);
+        assert_eq!(out.len(), 1);
         assert_eq!(out[0].0, "cyclomatic");
     }
 
