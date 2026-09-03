@@ -12,7 +12,6 @@ use std::collections::HashMap;
 /// A metric row: (metric_name, symbol, value, bucket)
 pub type MetricRow = (String, String, String, String);
 
-/// Internal representation with bucket for sorting
 struct ScoredRow {
     metric_name: String,
     symbol: String,
@@ -21,8 +20,6 @@ struct ScoredRow {
 }
 
 impl ScoredRow {
-    /// Build a row for `symbol`/`value`, bucketed by a higher-is-worse
-    /// threshold table. Shared by the threshold-gated specs (fan_in, fan_out).
     fn bucketed(
         metric_name: &str,
         symbol: &str,
@@ -37,12 +34,11 @@ impl ScoredRow {
         }
     }
 
-    /// Convert to MetricRow for output
     fn into_row(self) -> MetricRow {
         (self.metric_name, self.symbol, self.value, self.bucket.to_string())
     }
 
-    /// Severity score for sorting (higher = worse)
+    /// Higher = worse; rows sort descending on this.
     fn severity(&self) -> u8 {
         match self.bucket {
             Bucket::Excellent => 0,
@@ -54,7 +50,6 @@ impl ScoredRow {
     }
 }
 
-/// Bundle of all computed metrics for collection
 pub struct MetricsBundle<'a> {
     pub structural: &'a StructuralMetrics,
     pub complexity: &'a ComplexityMetrics,
@@ -66,8 +61,7 @@ pub struct MetricsBundle<'a> {
 }
 
 /// Walk a distribution, optionally restricted to one symbol, pushing
-/// whatever rows `score` produces. The single collection loop shared by
-/// every spec type and both display modes (global and symbol-filtered).
+/// whatever rows `score` produces.
 fn collect_rows(
     distribution: &[(String, usize)],
     filter: Option<&str>,
@@ -173,8 +167,7 @@ impl<'a> TwoSidedSizeSpec<'a> {
     }
 
     fn score(&self, symbol: &str, value: usize) -> Option<ScoredRow> {
-        // Boring = 1-liners that are exempt from the low side (the high-side
-        // `value > 1` rule that applied before the metric became two-sided).
+        // A 1-liner exempt from the low side has nothing left to flag.
         if value <= 1 && !self.low_side_applies(symbol) {
             return None;
         }
@@ -257,7 +250,6 @@ pub(crate) struct GatedSpec<'a> {
 }
 
 impl<'a> GatedSpec<'a> {
-    /// Symbol -> value lookup over one of the complexity distributions.
     fn by_symbol(dist: &'a [(String, usize)]) -> HashMap<&'a str, usize> {
         dist.iter().map(|(id, v)| (id.as_str(), *v)).collect()
     }
@@ -319,7 +311,6 @@ pub(crate) struct MetricSpecs<'a> {
 
 impl<'a> MetricSpecs<'a> {
     pub(crate) fn new(m: &'a MetricsBundle, config: &'a Config) -> Self {
-        // Thresholds resolve by metric name (config serde keys).
         let th = config.thresholds.by_name();
         let c = m.complexity;
         let spec = |name: &'static str,
@@ -425,7 +416,6 @@ impl<'a> MetricSpecs<'a> {
     }
 }
 
-/// Canonical metric display order
 const METRIC_ORDER: &[&str] = &[
     "fan_out",
     "fan_in",
