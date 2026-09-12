@@ -357,28 +357,40 @@ impl<'a> MetricSpecs<'a> {
             cognitive: GatedSpec::by_symbol(&c.cognitive.distribution),
             cognitive_fair: th["cognitive"].fair,
         };
+        // Each entry states its own gate, so a new gated metric cannot
+        // silently inherit another's suppression predicate.
         let candidates = [
-            Some(("fan_out", &m.structural.fan_out.distribution[..], Some(0))),
-            Some(("cyclomatic", &c.cyclomatic.distribution[..], Some(1))),
-            Some(("params", &c.params.distribution[..], Some(0))),
-            Some(("fan_in", &m.structural.fan_in.distribution[..], None)),
+            (
+                "fan_out",
+                &m.structural.fan_out.distribution[..],
+                Some(0),
+                low_complexity(),
+            ),
+            (
+                "cyclomatic",
+                &c.cyclomatic.distribution[..],
+                Some(1),
+                low_cognitive(),
+            ),
+            ("params", &c.params.distribution[..], Some(0), low_complexity()),
+            (
+                "fan_in",
+                &m.structural.fan_in.distribution[..],
+                None,
+                Suppression::NotHub { hubs: &m.structural.hubs },
+            ),
         ];
         let gated = candidates
             .into_iter()
-            .flatten()
-            .filter(|(name, _, _)| !config.is_disabled(name))
-            .map(|(name, distribution, boring_threshold)| GatedSpec {
-                name,
-                distribution,
-                thresholds: th[name].clone(),
-                boring_threshold,
-                suppression: match name {
-                    "fan_out" | "params" => low_complexity(),
-                    "fan_in" => {
-                        Suppression::NotHub { hubs: &m.structural.hubs }
-                    }
-                    _ => low_cognitive(),
-                },
+            .filter(|(name, ..)| !config.is_disabled(name))
+            .map(|(name, distribution, boring_threshold, suppression)| {
+                GatedSpec {
+                    name,
+                    distribution,
+                    thresholds: th[name].clone(),
+                    boring_threshold,
+                    suppression,
+                }
             })
             .collect();
 
